@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Energética GTC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            scrollbar-color: #4b5563 #f3f4f6;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #f3f4f6;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 3px;
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+    </style>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+<body class="bg-gray-100">
+
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="w-full max-w-sm h-[85vh] max-h-[900px] bg-white shadow-2xl rounded-3xl flex flex-col overflow-hidden border-4 border-gray-200 relative">
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-b-xl z-20"></div>
+
+            <main id="main-content" class="flex-grow p-6 overflow-y-auto scrollbar-thin">
+                
+                <!-- Página 1: Capa -->
+                <div id="page-0" class="page active">
+                    <div class="flex flex-col items-center justify-center h-full text-center">
+                        <div class="p-8 bg-white/50 rounded-2xl shadow-xl backdrop-blur-md border border-gray-200">
+                            <span class="text-4xl font-bold tracking-wider text-cyan-600">Koelho2000</span>
+                            <h1 class="text-2xl font-light text-gray-800 mt-4">Calculadora Energética GTC</h1>
+                            <p class="text-gray-500 mt-8">Versão: 29.0.0</p>
+                            <p id="cover-date" class="text-gray-500"></p>
+                            <button id="start-btn" class="mt-12 w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105">Iniciar</button>
+                             <a href="#" id="privacy-link" class="text-xs text-gray-500 mt-4 hover:underline block">Política de Privacidade</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Páginas seguintes serão geradas dinamicamente -->
+                <div id="page-1" class="page"></div>
+                <div id="page-2" class="page"></div>
+                <div id="page-3" class="page"></div>
+                <div id="page-4" class="page"></div>
+                <div id="page-5" class="page"></div>
+                <div id="page-6" class="page"></div>
+
+            </main>
+            
+            <footer id="footer-nav" class="bg-white/80 p-4 border-t border-gray-200 backdrop-blur-sm hidden">
+                <div class="w-full bg-gray-200 rounded-full h-1.5 mb-4">
+                    <div id="progress-bar" class="bg-cyan-500 h-1.5 rounded-full" style="width: 0%;"></div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <button id="back-btn" class="p-2 rounded-full bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-gray-700"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                     <span id="page-indicator" class="text-sm font-medium text-gray-600"></span>
+                    <button id="next-btn" class="p-2 rounded-full bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-gray-700"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // --- DADOS DA APLICAÇÃO ---
+        const EN15232_FACTORS = {
+            'Escritórios': { thermal: { 'D': 1.51, 'C': 1.00, 'B': 0.80, 'A': 0.70 }, electric: { 'D': 1.10, 'C': 1.00, 'B': 0.93, 'A': 0.87 } },
+            'Salas de Conferência': { thermal: { 'D': 1.24, 'C': 1.00, 'B': 0.75, 'A': 0.50 }, electric: { 'D': 1.06, 'C': 1.00, 'B': 0.94, 'A': 0.89 } },
+            'Edifícios Escolares': { thermal: { 'D': 1.20, 'C': 1.00, 'B': 0.88, 'A': 0.80 }, electric: { 'D': 1.07, 'C': 1.00, 'B': 0.93, 'A': 0.86 } },
+            'Hospitais': { thermal: { 'D': 1.31, 'C': 1.00, 'B': 0.91, 'A': 0.86 }, electric: { 'D': 1.05, 'C': 1.00, 'B': 0.98, 'A': 0.96 } },
+            'Hotéis': { thermal: { 'D': 1.31, 'C': 1.00, 'B': 0.85, 'A': 0.68 }, electric: { 'D': 1.07, 'C': 1.00, 'B': 0.95, 'A': 0.90 } },
+            'Restaurantes': { thermal: { 'D': 1.23, 'C': 1.00, 'B': 0.77, 'A': 0.68 }, electric: { 'D': 1.04, 'C': 1.00, 'B': 0.96, 'A': 0.92 } },
+            'Comércio e Retalho': { thermal: { 'D': 1.56, 'C': 1.00, 'B': 0.73, 'A': 0.60 }, electric: { 'D': 1.08, 'C': 1.00, 'B': 0.95, 'A': 0.91 } },
+            'Residencial': { thermal: { 'D': 1.10, 'C': 1.00, 'B': 0.88, 'A': 0.81 }, electric: { 'D': 1.08, 'C': 1.00, 'B': 0.93, 'A': 0.92 } }
+        };
+        const CLASS_DESCRIPTIONS = {
+            'A': 'Controlo integrado de AVAC, iluminação e estores; otimização preditiva; deteção de falhas; controlo por zona com base na ocupação real.',
+            'B': 'Controlo coordenado de sistemas; programação horária avançada; controlo de temperatura com compensação; controlo de ventilação por demanda (sensores CO2).',
+            'C': 'Controlo automático básico; programação horária centralizada; controlo de temperatura por termostatos simples; sem integração entre sistemas.',
+            'D': 'Sistemas sem automação ou com controlo local não programável; dependência total da intervenção manual para ligar/desligar equipamentos.'
+        };
+        const MV_PLANS_DATA = {
+            'none': { title: 'Nenhum plano selecionado.', description: '', formula: '', equipment: '', procedure: '' },
+            'A': { title: 'Opção A - Isolamento de Retrofit', description: 'Medição em campo de parâmetros chave de desempenho do sistema alvo da Medida de Conservação de Energia (MCE). Os parâmetros não medidos são estimados. Ideal para projetos onde o desempenho do equipamento pode ser medido diretamente.', formula: 'Poupança = Σ (Consumo_base - Consumo_pós) * Ajustes', equipment: 'Medidores de energia portáteis (analisadores de redes), sondas de temperatura, data loggers, software de folha de cálculo (Excel, Google Sheets).', procedure: `1. **Caracterização da Linha de Base:** Medir o consumo do equipamento antigo em condições de operação típicas.\n2. **Definição do Período de Medição:** Estabelecer um período representativo (ex: 2 semanas) para as medições pós-retrofit.\n3. **Instalação e Medição:** Instalar o novo sistema e os medidores. Recolher dados contínuos de consumo de energia e variáveis relevantes (temperatura exterior, horas de funcionamento).\n4. **Análise e Cálculo da Poupança:** Comparar os dados pré e pós. Usar o software de folha de cálculo para ajustar os consumos a condições normalizadas (se necessário) e calcular a poupança.\n5. **Relatório:** Documentar toda a metodologia, dados, cálculos e resultados.`},
+            'B': { title: 'Opção B - Medição de Todos Parâmetros', description: 'Medição contínua do consumo de energia do sistema alvo da MCE. É a opção mais precisa para projetos de isolamento, recomendada quando se pretende alta precisão.', formula: 'Poupança = Consumo Energia Período Base - Consumo Energia Período Pós', equipment: 'Medidores de energia fixos (comunicação Modbus/BACnet), sistema de gestão de energia ou plataforma de software SCADA/BMS, gateway de comunicação, cablagem.', procedure: `1. **Instalação da Medição da Linha de Base:** Instalar medidores fixos nos circuitos do sistema antes de qualquer alteração.\n2. **Recolha de Dados da Linha de Base:** Recolher dados continuamente durante um período significativo (ex: 4 semanas) para estabelecer uma linha de base robusta.\n3. **Implementação da Melhoria:** Instalar o novo sistema GTC.\n4. **Recolha de Dados Pós-Retrofit:** Continuar a recolha de dados dos mesmos medidores.\n5. **Análise Direta:** A poupança é a diferença direta entre o consumo do período de linha de base e o período pós-retrofit, ajustada para quaisquer variações operacionais.\n6. **Relatório:** Apresentar os dados de forma gráfica, mostrando a tendência de consumo antes e depois da intervenção.`},
+            'C': { title: 'Opção C - Medição em Toda a Instalação', description: 'Medição do consumo de energia ao nível do contador principal do edifício. Adequado para projetos com múltiplas MCE ou quando as poupanças são significativas (>10% do total).', formula: 'Poupança = (Consumo_base_ajustado) - (Consumo_pós_retrofit)', equipment: 'Acesso aos dados do contador principal da concessionária (smart meter), software de análise estatística ou folha de cálculo avançada, dados meteorológicos (graus-dia de aquecimento/arrefecimento).', procedure: `1. **Recolha de Dados Históricos:** Obter dados de consumo mensais ou diários do contador principal do último ano (12 meses) para a linha de base.\n2. **Recolha de Variáveis Independentes:** Obter dados históricos correspondentes para as variáveis que influenciam o consumo (ex: graus-dia da estação meteorológica mais próxima, ocupação).\n3. **Desenvolvimento do Modelo de Regressão:** Usar o software para criar um modelo estatístico (ex: regressão linear múltipla) que correlacione o consumo com as variáveis. Validar a precisão do modelo (ex: R²).\n4. **Implementação da Melhoria:** Instalar o novo sistema GTC.\n5. **Recolha de Dados Pós-Retrofit:** Medir o consumo total do edifício e as variáveis independentes no período pós-intervenção.\n6. **Cálculo da Poupança:** Usar o modelo de regressão para prever qual teria sido o consumo nas condições pós-retrofit. A poupança é a diferença entre o consumo real medido.\n7. **Relatório:** Apresentar o modelo de regressão, os dados de validação, os gráficos de dispersão e o cálculo final da poupança.`}
+        };
+        const distritos = ["Aveiro", "Beja", "Braga", "Bragança", "Castelo Branco", "Coimbra", "Évora", "Faro", "Guarda", "Leiria", "Lisboa", "Portalegre", "Porto", "Santarém", "Setúbal", "Viana do Castelo", "Vila Real", "Viseu"];
+        const systemTypes = ["Caldeira", "Bomba de Calor", "VRV", "Chiller", "UTAs", "Ventiloconvectores", "Outro"];
+        const energyTypes = ["Eletricidade", "Gás Natural", "Gás Propano", "Biomassa", "Outro"];
+        const buildingTypes = ["Escritórios", "Salas de Conferência", "Edifícios Escolares", "Hospitais", "Hotéis", "Restaurantes", "Comércio e Retalho", "Residencial"];
+
+        // --- ESTADO DA APLICAÇÃO ---
+        let currentPage = 0;
+        const totalPages = 7;
+        let data = {
+            location: { buildingName: '', district: 'Lisboa', area: 5000, buildingType: 'Escritórios', costs: { electricity: 0.18, naturalGas: 0.09, propane: 0.15 } },
+            existing: {
+                heating: { type: 'Caldeira', efficiency: 0.90, energy: 'Gás Natural' },
+                cooling: { type: 'Chiller', efficiency: 3.5, energy: 'Eletricidade' },
+                thermalConsumption: { 
+                    heating: { type: 'per_m2', value: '80' },
+                    cooling: { type: 'per_m2', value: '40' }
+                },
+                electricConsumption: { type: 'per_m2', value: '45' },
+                class: 'C',
+            },
+            new: { newClass: 'B' },
+            investment: 50000,
+            mvPlan: 'none',
+        };
+
+        // --- FUNÇÕES AUXILIARES ---
+        const formatCurrency = (value) => (value || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+        const formatNumber = (value) => (value || 0).toLocaleString('pt-PT', { maximumFractionDigits: 0 });
+
+        // --- LÓGICA DE CÁLCULO ---
+        function getCalculations() {
+            const { location, existing, new: newData, investment } = data;
+            const { area, costs, buildingType } = location;
+            const { thermalConsumption, electricConsumption, class: existingClass, heating, cooling } = existing;
+            const { newClass } = newData;
+
+            const isValid = existingClass && newClass && existingClass !== newClass;
+            if (!isValid) return { isValid: false };
+
+            const buildingFactors = EN15232_FACTORS[buildingType] || EN15232_FACTORS['Escritórios'];
+            const demandHeating = thermalConsumption.heating.type === 'total' ? parseFloat(thermalConsumption.heating.value) || 0 : (parseFloat(thermalConsumption.heating.value) || 0) * area;
+            const demandCooling = thermalConsumption.cooling.type === 'total' ? parseFloat(thermalConsumption.cooling.value) || 0 : (parseFloat(thermalConsumption.cooling.value) || 0) * area;
+            const demandElectric = electricConsumption.type === 'total' ? parseFloat(electricConsumption.value) || 0 : (parseFloat(electricConsumption.value) || 0) * area;
+            
+            const existingHeatingConsumption = demandHeating / (heating.efficiency || 1);
+            const proposedHeatingConsumption = (demandHeating * buildingFactors.thermal[newClass]) / (heating.efficiency || 1);
+            const heatingSavings = existingHeatingConsumption - proposedHeatingConsumption;
+
+            const existingCoolingConsumption = demandCooling / (cooling.efficiency || 1);
+            const proposedCoolingConsumption = (demandCooling * buildingFactors.thermal[newClass]) / (cooling.efficiency || 1);
+            const coolingSavings = existingCoolingConsumption - proposedCoolingConsumption;
+
+            const existingElectricConsumption = demandElectric * (buildingFactors.electric[existingClass] || 1);
+            const proposedElectricConsumption = demandElectric * buildingFactors.electric[newClass];
+            const electricSavings = existingElectricConsumption - proposedElectricConsumption;
+            
+            const energyCostMap = { 'Eletricidade': costs.electricity, 'Gás Natural': costs.naturalGas, 'Gás Propano': costs.propane, 'Biomassa': 0.06, 'Outro': 0.12 };
+            const heatingEnergyCost = energyCostMap[heating.energy] || costs.naturalGas;
+            const coolingEnergyCost = energyCostMap[cooling.energy] || costs.electricity;
+            
+            const existingCost = (existingHeatingConsumption * heatingEnergyCost) + (existingCoolingConsumption * coolingEnergyCost) + (existingElectricConsumption * costs.electricity);
+            const newCost = (proposedHeatingConsumption * heatingEnergyCost) + (proposedCoolingConsumption * coolingEnergyCost) + (proposedElectricConsumption * costs.electricity);
+            const totalCostSavings = existingCost - newCost;
+            
+            const breakEvenYear = investment > 0 && totalCostSavings > 0 ? investment / totalCostSavings : null;
+
+            return {
+                isValid: true,
+                factors: buildingFactors,
+                buildingType,
+                heating: { demand: demandHeating, existing: { kwh: existingHeatingConsumption, class: existingClass }, new: { kwh: proposedHeatingConsumption, class: newClass }, savings: heatingSavings, savingsPercent: existingHeatingConsumption > 0 ? (heatingSavings / existingHeatingConsumption) * 100 : 0 },
+                cooling: { demand: demandCooling, existing: { kwh: existingCoolingConsumption, class: existingClass }, new: { kwh: proposedCoolingConsumption, class: newClass }, savings: coolingSavings, savingsPercent: existingCoolingConsumption > 0 ? (coolingSavings / existingCoolingConsumption) * 100 : 0 },
+                electric: { demand: demandElectric, existing: { kwh: existingElectricConsumption, class: existingClass }, new: { kwh: proposedElectricConsumption, class: newClass }, savings: electricSavings, savingsPercent: existingElectricConsumption > 0 ? (electricSavings / existingElectricConsumption) * 100 : 0 },
+                total: { existing: { kwh: existingHeatingConsumption + existingCoolingConsumption + existingElectricConsumption }, new: { kwh: proposedHeatingConsumption + proposedCoolingConsumption + proposedElectricConsumption } },
+                existingCost,
+                newCost,
+                totalCostSavings,
+                breakEvenYear
+            };
+        }
+
+        // --- LÓGICA DE RENDERIZAÇÃO ---
+        function renderPage(pageIndex) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const pageElement = document.getElementById(`page-${pageIndex}`);
+            if (pageElement) {
+                pageElement.classList.add('active');
+                 if (pageIndex > 0) { // Don't re-render static cover page
+                    pageElement.innerHTML = getPageContent(pageIndex);
+                }
+            }
+            updateNavigation(pageIndex);
+        }
+        
+        function getPageContent(pageIndex) {
+            const calculations = getCalculations();
+            switch (pageIndex) {
+                case 1: return renderLocationPage();
+                case 2: return renderExistingPage();
+                case 3: return renderNewSystemPage(calculations);
+                case 4: return renderROIPage(calculations);
+                case 5: return renderMVPage(calculations);
+                case 6: return renderPrivacyPage();
+                default: return '';
+            }
+        }
+
+        function renderLocationPage() {
+            return `
+                <div class="space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-800 text-center">Dados do Edifício</h2>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Nome do Edifício</label>
+                        <input type="text" data-path="location.buildingName" value="${data.location.buildingName}" class="w-full p-2 border rounded-md bg-white border-gray-300 text-gray-800" placeholder="Ex: Edifício Central">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Distrito</label>
+                        <select data-path="location.district" class="w-full p-2 border rounded-md bg-white border-gray-300 text-gray-800">
+                            ${distritos.map(d => `<option value="${d}" ${data.location.district === d ? 'selected' : ''}>${d}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Tipo de Edifício</label>
+                        <select data-path="location.buildingType" class="w-full p-2 border rounded-md bg-white border-gray-300 text-gray-800">
+                            ${buildingTypes.map(b => `<option value="${b}" ${data.location.buildingType === b ? 'selected' : ''}>${b}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Área Bruta do Edifício</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" data-path="location.area" min="100" max="50000" step="100" value="${data.location.area}" class="w-full h-2 bg-gray-200 rounded-lg">
+                            <span class="text-cyan-700 font-semibold min-w-[70px] text-right">${data.location.area} m²</span>
+                        </div>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 pt-4 border-t border-gray-200">Custos de Energia</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Eletricidade</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" data-path="location.costs.electricity" min="0" max="5" step="0.01" value="${data.location.costs.electricity}" class="w-full h-2 bg-gray-200 rounded-lg">
+                            <span class="text-cyan-700 font-semibold min-w-[70px] text-right">${data.location.costs.electricity.toFixed(2)} €/kWh</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Gás Natural</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" data-path="location.costs.naturalGas" min="0" max="5" step="0.01" value="${data.location.costs.naturalGas}" class="w-full h-2 bg-gray-200 rounded-lg">
+                            <span class="text-cyan-700 font-semibold min-w-[70px] text-right">${data.location.costs.naturalGas.toFixed(2)} €/kWh</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Gás Propano</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" data-path="location.costs.propane" min="0" max="5" step="0.01" value="${data.location.costs.propane}" class="w-full h-2 bg-gray-200 rounded-lg">
+                            <span class="text-cyan-700 font-semibold min-w-[70px] text-right">${data.location.costs.propane.toFixed(2)} €/kWh</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderExistingPage() {
+            const { existing } = data;
+            const { area, costs } = data.location;
+            
+            const demandHeating = existing.thermalConsumption.heating.type === 'total' ? parseFloat(existing.thermalConsumption.heating.value) || 0 : (parseFloat(existing.thermalConsumption.heating.value) || 0) * area;
+            const demandCooling = existing.thermalConsumption.cooling.type === 'total' ? parseFloat(existing.thermalConsumption.cooling.value) || 0 : (parseFloat(existing.thermalConsumption.cooling.value) || 0) * area;
+            const demandElectric = existing.electricConsumption.type === 'total' ? parseFloat(existing.electricConsumption.value) || 0 : (parseFloat(existing.electricConsumption.value) || 0) * area;
+
+            const consumptionByEnergyType = {};
+            const finalHeating = demandHeating / (existing.heating.efficiency || 1);
+            consumptionByEnergyType[existing.heating.energy] = (consumptionByEnergyType[existing.heating.energy] || 0) + finalHeating;
+            const finalCooling = demandCooling / (existing.cooling.efficiency || 1);
+            consumptionByEnergyType[existing.cooling.energy] = (consumptionByEnergyType[existing.cooling.energy] || 0) + finalCooling;
+            consumptionByEnergyType['Eletricidade'] = (consumptionByEnergyType['Eletricidade'] || 0) + demandElectric;
+            
+            const energyCostMap = { 'Eletricidade': costs.electricity, 'Gás Natural': costs.naturalGas, 'Gás Propano': costs.propane, 'Biomassa': 0.06, 'Outro': 0.12 };
+            const totalCost = Object.entries(consumptionByEnergyType).reduce((acc, [energy, consumption]) => {
+                const costPerKwh = energyCostMap[energy] || 0;
+                return acc + (consumption * costPerKwh);
+            }, 0);
+            const totalConsumption = Object.values(consumptionByEnergyType).reduce((a, b) => a + b, 0);
+
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-2xl font-bold text-gray-800 text-center">Sistema Existente</h2>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                        <h3 class="text-md font-semibold text-cyan-700 mb-3">Sistemas de Produção Térmica</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600 mb-1">Aquecimento: Tipo de Sistema</label>
+                                <select data-path="existing.heating.type" class="w-full p-2 border rounded-md">${systemTypes.map(s => `<option value="${s}" ${existing.heating.type === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+                                <label class="block text-sm font-medium text-gray-600 mb-1 mt-2">Aquecimento: Tipo de Energia</label>
+                                <select data-path="existing.heating.energy" class="w-full p-2 border rounded-md">${energyTypes.map(e => `<option value="${e}" ${existing.heating.energy === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
+                                <label class="block text-sm font-medium text-gray-600 mb-1 mt-2">Eficiência Aquecimento</label>
+                                <div class="flex items-center space-x-4">
+                                    <input type="range" data-path="existing.heating.efficiency" min="0" max="10" step="0.1" value="${existing.heating.efficiency}" class="w-full h-2 bg-gray-200 rounded-lg">
+                                    <span class="text-cyan-700 font-semibold min-w-[70px] text-right">${existing.heating.efficiency} COP</span>
+                                </div>
+                            </div>
+                            <div class="pt-4 border-t border-gray-200">
+                                <label class="block text-sm font-medium text-gray-600 mb-1">Arrefecimento: Tipo de Sistema</label>
+                                <select data-path="existing.cooling.type" class="w-full p-2 border rounded-md">${systemTypes.map(s => `<option value="${s}" ${existing.cooling.type === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+                                <label class="block text-sm font-medium text-gray-600 mb-1 mt-2">Arrefecimento: Tipo de Energia</label>
+                                <select data-path="existing.cooling.energy" class="w-full p-2 border rounded-md">${energyTypes.map(e => `<option value="${e}" ${existing.cooling.energy === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
+                                <label class="block text-sm font-medium text-gray-600 mb-1 mt-2">Eficiência Arrefecimento</label>
+                                <div class="flex items-center space-x-4">
+                                    <input type="range" data-path="existing.cooling.efficiency" min="0.5" max="10" step="0.1" value="${existing.cooling.efficiency}" class="w-full h-2 bg-gray-200 rounded-lg">
+                                    <span class="text-cyan-700 font-semibold min-w-[70px] text-right">${existing.cooling.efficiency} EER</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ${renderConsumptionCardHTML('Demanda Energética de Aquecimento', existing.thermalConsumption.heating, 'heating')}
+                    ${renderConsumptionCardHTML('Demanda Energética de Arrefecimento', existing.thermalConsumption.cooling, 'cooling')}
+                    ${renderConsumptionCardHTML('Demanda Energética Elétrica (não-AVAC)', existing.electricConsumption, 'electric')}
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                        <h4 class="font-semibold text-gray-700 mb-2">Consumo Anual</h4>
+                        ${Object.entries(consumptionByEnergyType).map(([energy, value]) => `<div class="flex justify-between text-sm"><span>${energy}:</span><span class="font-mono">${formatNumber(value)} kWh</span></div>`).join('')}
+                        <div class="flex justify-between font-bold text-lg pt-2 border-t mt-2"><span>Consumo Total:</span><span class="font-mono">${formatNumber(totalConsumption)} kWh</span></div>
+                        <div class="flex justify-between font-bold text-lg"><span>Custo Total:</span><span class="font-mono">${formatCurrency(totalCost)}</span></div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Classe de Eficiência GTC Existente</label>
+                        <select data-path="existing.class" class="w-full p-2 border rounded-md">
+                            <option value="" ${!existing.class ? 'selected' : ''}>Selecione...</option>
+                            <option value="D" ${existing.class === 'D' ? 'selected' : ''}>D - Não eficiente</option>
+                            <option value="C" ${existing.class === 'C' ? 'selected' : ''}>C - Básico</option>
+                            <option value="B" ${existing.class === 'B' ? 'selected' : ''}>B - Avançado</option>
+                            <option value="A" ${existing.class === 'A' ? 'selected' : ''}>A - Elevado Desempenho</option>
+                        </select>
+                        ${existing.class ? `<div class="mt-3 p-2 bg-gray-50 rounded-md text-sm text-gray-700"><p><strong>Requisitos Classe ${existing.class}:</strong> ${CLASS_DESCRIPTIONS[existing.class]}</p></div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderConsumptionCardHTML(title, consumptionData, key) {
+            const { area } = data.location;
+            const annualConsumption = consumptionData.type === 'total' 
+                ? parseFloat(consumptionData.value) || 0 
+                : (parseFloat(consumptionData.value) || 0) * area;
+
+            return `
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <h3 class="text-md font-semibold text-cyan-700 mb-3">${title}</h3>
+                    <div class="flex space-x-2 my-2">
+                        <button data-key="${key}" data-type="total" class="consumption-type-btn flex-1 p-2 rounded-md text-sm ${consumptionData.type === 'total' ? 'bg-cyan-600 text-white' : 'bg-gray-200 text-gray-700'}">Total Anual</button>
+                        <button data-key="${key}" data-type="per_m2" class="consumption-type-btn flex-1 p-2 rounded-md text-sm ${consumptionData.type === 'per_m2' ? 'bg-cyan-600 text-white' : 'bg-gray-200 text-gray-700'}">Por m²</button>
+                    </div>
+                    ${consumptionData.type === 'total' ? `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Demanda</label>
+                            <input type="number" data-path="existing.${key === 'electric' ? 'electricConsumption' : `thermalConsumption.${key}`}.value" value="${consumptionData.value}" class="w-full p-2 border rounded-md">
+                        </div>
+                    ` : `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Demanda</label>
+                            <div class="flex items-center space-x-4">
+                                <input type="range" data-path="existing.${key === 'electric' ? 'electricConsumption' : `thermalConsumption.${key}`}.value" min="0" max="1000" step="10" value="${consumptionData.value}" class="w-full h-2 bg-gray-200 rounded-lg">
+                                <span class="text-cyan-700 font-semibold min-w-[70px] text-right">${consumptionData.value} kWh/m²/ano</span>
+                            </div>
+                        </div>
+                    `}
+                    ${consumptionData.type === 'per_m2' && area > 0 ? `
+                        <div class="mt-3 p-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                            <p>Demanda Energética Anual: <span class="font-bold">${formatNumber(annualConsumption)} kWh</span></p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function renderNewSystemPage(calculations) {
+            if (!calculations.isValid) {
+                return `<div class="space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-800 text-center">Novo Sistema GTC</h2>
+                    <select data-path="new.newClass" class="w-full p-2 border rounded-md bg-white border-gray-300 text-gray-800">
+                        <option value="">Selecione...</option>
+                        <option value="D" ${data.new.newClass === 'D' ? 'selected' : ''}>D - Não eficiente</option>
+                        <option value="C" ${data.new.newClass === 'C' ? 'selected' : ''}>C - Básico</option>
+                        <option value="B" ${data.new.newClass === 'B' ? 'selected' : ''}>B - Avançado</option>
+                        <option value="A" ${data.new.newClass === 'A' ? 'selected' : ''}>A - Elevado Desempenho</option>
+                    </select>
+                    <p class="text-center text-yellow-600">Selecione as classes GTC (existente e nova) para ver os resultados.</p>
+                </div>`;
+            }
+
+            const { heating, cooling, electric, buildingType, factors } = calculations;
+
+            return `<div class="space-y-6">
+                <h2 class="text-2xl font-bold text-gray-800 text-center">Novo Sistema GTC</h2>
+                <select data-path="new.newClass" class="w-full p-2 border rounded-md bg-white border-gray-300 text-gray-800">
+                    <option value="">Selecione...</option>
+                    <option value="D" ${data.new.newClass === 'D' ? 'selected' : ''}>D - Não eficiente</option>
+                    <option value="C" ${data.new.newClass === 'C' ? 'selected' : ''}>C - Básico</option>
+                    <option value="B" ${data.new.newClass === 'B' ? 'selected' : ''}>B - Avançado</option>
+                    <option value="A" ${data.new.newClass === 'A' ? 'selected' : ''}>A - Elevado Desempenho</option>
+                </select>
+                ${data.new.newClass ? `<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200"><h4 class="text-md font-semibold text-cyan-700 mb-2">Requisitos para Classe ${data.new.newClass}</h4><p class="text-sm text-gray-600">${CLASS_DESCRIPTIONS[data.new.newClass]}</p></div>` : ''}
+                
+                ${renderResultCardHTML('Análise de Aquecimento', 'Sun', heating, true)}
+                ${renderEn15232TableHTML(`Fatores Térmicos (${buildingType})`, factors.thermal, heating.existing.class, heating.new.class)}
+                
+                ${renderResultCardHTML('Análise de Arrefecimento', 'Wind', cooling, true)}
+                ${renderEn15232TableHTML(`Fatores Térmicos (${buildingType})`, factors.thermal, cooling.existing.class, cooling.new.class)}
+
+                ${renderResultCardHTML('Análise Elétrica (não-AVAC)', 'Flame', electric, false)}
+                ${renderEn15232TableHTML(`Fatores Elétricos (${buildingType})`, factors.electric, electric.existing.class, electric.new.class)}
+            </div>`;
+        }
+
+        function renderResultCardHTML(title, iconName, calcData, isThermal) {
+             const ICONS = {
+                Sun: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>`,
+                Wind: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"></path><path d="M9.6 4.6A2 2 0 1 1 11 8H2"></path><path d="M12.6 19.4A2 2 0 1 0 14 16H2"></path></svg>`,
+                Flame: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5-2 4.5-2 4.5-.5 1.5-2.5 2.5-2.5 2.5"></path><path d="M14.5 14.5A2.5 2.5 0 0 0 17 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5-2 4.5-2 4.5-.5 1.5-2.5 2.5-2.5 2.5"></path><path d="M2 18h20"></path><path d="M7 18a4 4 0 0 0 4 4 4 4 0 0 0 4-4"></path></svg>`
+            };
+             return `<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <h4 class="font-semibold text-cyan-700 flex items-center mb-3">${ICONS[iconName] || ''} ${title}</h4>
+                <div class="text-sm space-y-2">
+                    <div class="flex justify-between text-blue-700">
+                        <span>${isThermal ? "Demanda Energética Térmica" : "Demanda Energética"}:</span>
+                        <span class="font-mono">${formatNumber(calcData.demand)}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Consumo energia anual existente (Classe ${calcData.existing.class}):</span>
+                        <span class="font-mono">${formatNumber(calcData.existing.kwh)}</span>
+                    </div>
+                    <div class="flex justify-between text-green-600">
+                        <span>Consumo energia anual proposta (Classe ${calcData.new.class}):</span>
+                        <span class="font-mono">${formatNumber(calcData.new.kwh)}</span>
+                    </div>
+                </div>
+                <div class="mt-3 pt-3 border-t">
+                    <div class="flex justify-between font-bold text-lg text-green-700">
+                        <span>Redução (Faturada):</span>
+                        <span class="font-mono">${formatNumber(calcData.savings)} kWh (${calcData.savingsPercent.toFixed(1)}%)</span>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function renderEn15232TableHTML(title, factors, existingClass, proposedClass) {
+            let rows = '';
+            for (const [cls, factor] of Object.entries(factors).reverse()) {
+                let rowClass = '';
+                if (cls === existingClass) rowClass = 'bg-red-100 text-red-800';
+                if (cls === proposedClass) rowClass = 'bg-green-100 text-green-800';
+                rows += `<tr class="${rowClass}"><td class="border p-1 font-mono font-bold">${cls}</td><td class="border p-1 font-mono">${factor.toFixed(2)}</td></tr>`;
+            }
+            return `<div class="mt-4">
+                <p class="text-center text-xs font-semibold text-gray-500 mb-1">${title}</p>
+                <table class="w-full text-xs text-center border-collapse">
+                    <thead><tr class="bg-gray-100"><th class="border p-1">Classe</th><th class="border p-1">Fator</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+        }
+
+        function renderROIPage(calculations) {
+            const breakEvenYear = calculations.breakEvenYear;
+            return `<div class="space-y-6">
+                <h2 class="text-2xl font-bold text-gray-800 text-center">Retorno do Investimento (ROI)</h2>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Custo Estimado do Investimento</label>
+                    <div class="flex items-center space-x-4">
+                        <input type="range" data-path="investment" min="0" max="200000" step="500" value="${data.investment}" class="w-full h-2 bg-gray-200 rounded-lg">
+                        <span class="text-cyan-700 font-semibold min-w-[70px] text-right">${formatCurrency(data.investment)}</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Resultados do ROI</h3>
+                    <div class="space-y-3 text-lg">
+                        <div class="flex justify-between items-center"><span class="text-gray-600">Investimento:</span><span class="font-bold font-mono text-cyan-700">${formatCurrency(data.investment)}</span></div>
+                        <div class="flex justify-between items-center"><span class="text-gray-600">Poupança Anual:</span><span class="font-bold font-mono text-green-600">${formatCurrency(calculations.totalCostSavings)}</span></div>
+                        <div class="flex justify-between items-center border-t pt-3 mt-3">
+                            <span class="font-bold">Payback Simples (PRI):</span>
+                            <span class="font-bold font-mono text-blue-600 text-2xl">${breakEvenYear ? `${breakEvenYear.toFixed(1)} anos` : 'N/A'}</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-4">(Cálculo de payback simples não considera inflação, custos de manutenção ou taxas de desconto).</p>
+                </div>
+            </div>`;
+        }
+
+        function renderMVPage(calculations) {
+            const { location, existing, new: newData, investment, mvPlan } = data;
+            const planData = MV_PLANS_DATA[mvPlan];
+
+            return `
+                <div class="space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-800 text-center">Plano de Medição & Verificação</h2>
+                    <select data-path="mvPlan" class="w-full p-2 border rounded-md bg-white border-gray-300 text-gray-800">
+                        <option value="none" ${mvPlan === 'none' ? 'selected' : ''}>Selecione...</option>
+                        <option value="A" ${mvPlan === 'A' ? 'selected' : ''}>Opção A</option>
+                        <option value="B" ${mvPlan === 'B' ? 'selected' : ''}>Opção B</option>
+                        <option value="C" ${mvPlan === 'C' ? 'selected' : ''}>Opção C</option>
+                    </select>
+                    ${mvPlan !== 'none' ? `
+                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 prose prose-sm max-w-none text-gray-700">
+                            <h3 class="text-cyan-700 !mb-2">${planData.title}</h3>
+                            <p class="!mt-0">${planData.description}</p>
+                            <h4 class="font-bold border-t pt-2 mt-4">Dados do Projeto</h4>
+                            <ul class="list-disc pl-5">
+                                <li><strong>Edifício:</strong> ${location.buildingName || 'N/D'} (${location.buildingType})</li>
+                                <li><strong>Localização:</strong> ${location.district}, ${formatNumber(location.area)} m²</li>
+                                <li><strong>Investimento:</strong> ${formatCurrency(investment)}</li>
+                                <li><strong>Intervenção:</strong> Melhoria de GTC (Classe ${existing.class} para ${newData.newClass})</li>
+                            </ul>
+                            ${calculations.isValid ? `
+                                <h4 class="font-bold border-t pt-2 mt-4">Análise de Poupança</h4>
+                                <table class="w-full text-sm">
+                                    <thead><tr class="border-b"><th class="text-left">Descrição</th><th class="text-right">Existente</th><th class="text-right">Proposto</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Consumo Anual (kWh)</td><td class="text-right font-mono">${formatNumber(calculations.total.existing.kwh)}</td><td class="text-right font-mono">${formatNumber(calculations.total.new.kwh)}</td></tr>
+                                        <tr><td>Custo Anual (€)</td><td class="text-right font-mono">${formatCurrency(calculations.existingCost)}</td><td class="text-right font-mono">${formatCurrency(calculations.newCost)}</td></tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="font-bold border-t"><td>Poupança</td><td colspan="2" class="text-right font-mono text-green-600">${formatCurrency(calculations.totalCostSavings)}</td></tr>
+                                    </tfoot>
+                                </table>
+                            ` : ''}
+                            <h4 class="font-bold border-t pt-2 mt-4">Fórmula de Verificação</h4>
+                            <p class="font-mono bg-gray-100 p-2 rounded-md text-center">${planData.formula}</p>
+                            <h4 class="font-bold border-t pt-2 mt-4">Equipamentos e Ferramentas Necessárias</h4>
+                            <p>${planData.equipment}</p>
+                            <h4 class="font-bold border-t pt-2 mt-4">Procedimento Detalhado</h4>
+                            <div class="whitespace-pre-wrap">${planData.procedure}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function renderPrivacyPage() {
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-2xl font-bold text-gray-800 text-center">Política de Privacidade</h2>
+                    <div class="text-sm text-gray-600 space-y-3">
+                        <p><strong>Última atualização:</strong> ${new Date().toLocaleDateString('pt-PT')}</p>
+                        <h3 class="text-lg font-semibold text-gray-800 pt-2">Recolha e Uso de Dados</h3>
+                        <p>Esta aplicação, Calculadora Energética GTC, foi concebida como uma ferramenta de simulação. Não recolhemos, armazenamos, partilhamos ou transmitimos quaisquer dados pessoais ou informações inseridas pelo utilizador.</p>
+                        <p>Todos os cálculos são processados localmente no seu dispositivo e os dados são perdidos quando a página é fechada ou atualizada. Nenhuma informação é enviada para servidores externos.</p>
+                        <h3 class="text-lg font-semibold text-gray-800 pt-2">Contacto</h3>
+                        <p>Se tiver alguma questão sobre esta política de privacidade, por favor contacte-nos através do email de suporte.</p>
+                    </div>
+                    <button id="privacy-back-btn" class="mt-8 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg">Voltar</button>
+                </div>
+            `;
+        }
+
+
+        // --- LÓGICA DE NAVEGAÇÃO E EVENTOS ---
+        function updateNavigation(pageIndex) {
+            const footer = document.getElementById('footer-nav');
+            const progressBar = document.getElementById('progress-bar');
+            const pageIndicator = document.getElementById('page-indicator');
+            const backBtn = document.getElementById('back-btn');
+            const nextBtn = document.getElementById('next-btn');
+
+            if (pageIndex === 0 || pageIndex === 6) { // Hide on cover and privacy
+                footer.classList.add('hidden');
+            } else {
+                footer.classList.remove('hidden');
+                const progress = (pageIndex / (totalPages - 2)) * 100; // Adjust progress for 5 main pages
+                pageIndicator.textContent = `Página ${pageIndex} de ${totalPages-1}`;
+                backBtn.disabled = pageIndex === 1;
+                nextBtn.disabled = pageIndex === totalPages - 2;
+            }
+        }
+        
+        function handleGlobalInput(event) {
+            const target = event.target;
+            const path = target.dataset.path;
+            if (!path) return;
+
+            const value = target.type === 'range' ? parseFloat(target.value) : target.value;
+            
+            const keys = path.split('.');
+            let current = data;
+            for (let i = 0; i < keys.length - 1; i++) {
+                current = current[keys[i]];
+            }
+            current[keys[keys.length - 1]] = value;
+            
+            if (target.type === 'range') {
+                const displaySpan = target.nextElementSibling;
+                if (displaySpan) {
+                     if (path.includes('cost')) {
+                         displaySpan.textContent = `${value.toFixed(2)} €/kWh`;
+                    } else if (path.includes('area')) {
+                         displaySpan.textContent = `${value} m²`;
+                    } else if (path.includes('efficiency')) {
+                        const unit = path.includes('cooling') ? 'EER' : 'COP';
+                        displaySpan.textContent = `${value.toFixed(1)} ${unit}`;
+                    } else if (path.includes('investment')) {
+                        displaySpan.textContent = formatCurrency(value);
+                    } else { 
+                        displaySpan.textContent = `${value} kWh/m²/ano`;
+                    }
+                }
+            }
+        }
+
+        function handleGlobalChange(event) {
+            const target = event.target;
+            const path = target.dataset.path;
+            if (!path) return;
+            renderPage(currentPage);
+        }
+
+        function handleGlobalClick(event) {
+             if (event.target.classList.contains('consumption-type-btn')) {
+                const key = event.target.dataset.key;
+                const type = event.target.dataset.type;
+                if (key === 'electric') {
+                    data.existing.electricConsumption.type = type;
+                } else {
+                    data.existing.thermalConsumption[key].type = type;
+                }
+                renderPage(currentPage);
+            }
+            if (event.target.id === 'privacy-back-btn') {
+                goToPage(0);
+            }
+        }
+
+        function goToPage(pageIndex) {
+            currentPage = pageIndex;
+            renderPage(currentPage);
+        }
+
+        function handleNext() {
+            if (currentPage < totalPages - 2) { // Stop before privacy page
+                currentPage++;
+                renderPage(currentPage);
+            }
+        }
+
+        function handleBack() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage(currentPage);
+            }
+        }
+
+        // --- INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('cover-date').textContent = `Data: ${new Date().toLocaleDateString('pt-PT')}`;
+            document.getElementById('start-btn').addEventListener('click', handleNext);
+            document.getElementById('next-btn').addEventListener('click', handleNext);
+            document.getElementById('back-btn').addEventListener('click', handleBack);
+            document.getElementById('privacy-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                goToPage(6);
+            });
+            
+            const mainContent = document.getElementById('main-content');
+            mainContent.addEventListener('input', handleGlobalInput);
+            mainContent.addEventListener('change', handleGlobalChange);
+            mainContent.addEventListener('click', handleGlobalClick);
+        });
+
+    </script>
+</body>
+</html>
